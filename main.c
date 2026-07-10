@@ -21,6 +21,7 @@ typedef struct {
 } chip8_t;
 
 bool running = true;
+bool draw = true;
 
 bool chipInit(chip8_t *chip8, const char rom[]) {
 	srand(time(0));
@@ -152,6 +153,14 @@ void execute(chip8_t *chip8) {
 
 					chip8->V[(chip8->opcode >> 8) & 0x0F] = chip8->V[(chip8->opcode >> 8) & 0x0F] - chip8->V[(chip8->opcode >> 4) & 0x0F];
 					break;
+				case 0x06:
+					chip8->V[0xF] = chip8->V[(chip8->opcode >> 8) & 0x0F] & 0x01;
+					chip8->V[(chip8->opcode >> 8) & 0x0F] >>= 1;
+					break;
+				case 0x0E:
+					chip8->V[0xF] = chip8->V[(chip8->opcode >> 8) & 0x0F] & 0x01;
+					chip8->V[(chip8->opcode >> 8) & 0x0F] <<= 1;
+					break;
 				default:
 					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
 					//running = false;
@@ -197,9 +206,9 @@ void execute(chip8_t *chip8) {
 
 					chip8->display[idx] ^= bit;
 				}
-
-				//yCoord++;
 			}
+
+			draw = true;
 			
 			break;
 		case 0x0E:
@@ -279,6 +288,8 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+
 	// Init SDL
 	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO)) {
 		printf("Error initializing SDL: %s\n", SDL_GetError());
@@ -317,21 +328,25 @@ int main(int argc, char **argv) {
 		}
 
 		execute(&chip8);
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-		SDL_RenderClear(renderer);
 
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-		for (int y = 0; y < 32; y++) {
-			for (int x = 0; x < 64; x++) {
-				if (chip8.display[x + y * 64]) {
-					SDL_FRect rect = {x * SCALE, y * SCALE, SCALE, SCALE};
-					SDL_RenderFillRect(renderer, &rect);
+		if (draw) {
+			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+			SDL_RenderClear(renderer);
+
+			SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+			for (int y = 0; y < 32; y++) {
+				for (int x = 0; x < 64; x++) {
+					if (chip8.display[x + y * 64]) {
+						SDL_FRect rect = {x * SCALE, y * SCALE, SCALE, SCALE};
+						SDL_RenderFillRect(renderer, &rect);
+					}
 				}
 			}
+			SDL_RenderPresent(renderer);
+			draw = false;
 		}
 
-		SDL_RenderPresent(renderer);
-		//SDL_Delay(1000.0/60);
+		SDL_Delay(3);
 	}
 
 	//int counter = 0;
