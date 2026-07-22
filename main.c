@@ -18,6 +18,7 @@ typedef struct {
 	uint16_t *stack_pointer;
 	bool display[64 * 32];
 	uint16_t opcode;
+	bool keypad[16];
 } chip8_t;
 
 bool running = true;
@@ -137,10 +138,13 @@ void execute(chip8_t *chip8) {
 				case 0x03:
 					chip8->V[(chip8->opcode >> 8) & 0x0F] ^= chip8->V[(chip8->opcode >> 4) & 0x0F];
 					break;
-				case 0x04: // TODO: Flag
+				case 0x04:
 					chip8->V[(chip8->opcode >> 8) & 0x0F] += chip8->V[(chip8->opcode >> 4) & 0x0F];
 					if (chip8->V[(chip8->opcode >> 8) & 0x0F] > 255) {
-						//chip8->V[0xF] = 1;
+						chip8->V[0xF] = 1;
+					}
+					else {
+						chip8->V[0xF] = 0;
 					}
 					break;
 				case 0x05:
@@ -214,10 +218,14 @@ void execute(chip8_t *chip8) {
 		case 0x0E:
 			switch (chip8->opcode & 0x00FF) {
 				case 0x9E:
-					chip8->PC += 2;
+					if (chip8->keypad[chip8->V[(chip8->opcode >> 8) & 0x0F]] == true) {
+						chip8->PC += 2;
+					}
 					break;
 				case 0xA1:
-					chip8->PC += 2;
+					if (chip8->keypad[chip8->V[(chip8->opcode >> 8) & 0x0F]] == false) {
+						chip8->PC += 2;
+					}
 					break;
 				default:
 					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
@@ -317,13 +325,74 @@ int main(int argc, char **argv) {
 		SDL_Quit();
 		exit(EXIT_FAILURE);
 	}
-	
-	SDL_Event event;
 
 	while (running) {
+		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_EVENT_QUIT) {
 				running = false;
+			}
+
+			if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
+				// Is key pressed or released?
+				bool pressed = (event.type == SDL_EVENT_KEY_DOWN);
+				switch (event.key.key) {
+					case SDLK_ESCAPE:
+						if (pressed) {
+							running = false;
+						}
+						break;
+					case SDLK_1:
+						chip8.keypad[0x1] = pressed;
+						break;
+					case SDLK_2:
+						chip8.keypad[0x2] = pressed;
+						break;
+					case SDLK_3:
+						chip8.keypad[0x3] = pressed;
+						break;
+					case SDLK_4:
+						chip8.keypad[0xC] = pressed;
+						break;
+					case SDLK_Q:
+						chip8.keypad[0x4] = pressed;
+						break;
+					case SDLK_W:
+						chip8.keypad[0x5] = pressed;
+						break;
+					case SDLK_E:
+						chip8.keypad[0x6] = pressed;
+						break;
+					case SDLK_R:
+						chip8.keypad[0xD] = pressed;
+						break;
+					case SDLK_A:
+						chip8.keypad[0x7] = pressed;
+						break;
+					case SDLK_S:
+						chip8.keypad[0x8] = pressed;
+						break;
+					case SDLK_D:
+						chip8.keypad[0x9] = pressed;
+						break;
+					case SDLK_F:
+						chip8.keypad[0xE] = pressed;
+						break;
+					case SDLK_Z:
+						chip8.keypad[0xA] = pressed;
+						break;
+					case SDLK_X:
+						chip8.keypad[0x0] = pressed;
+						break;
+					case SDLK_C:
+						chip8.keypad[0xB] = pressed;
+						break;
+					case SDLK_V:
+						chip8.keypad[0xF] = pressed;
+						break;
+					default:
+						break;
+				}
 			}
 		}
 
