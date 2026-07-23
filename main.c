@@ -20,7 +20,7 @@ typedef struct {
 	uint8_t memory[4096];
 	uint8_t V[16];
 	uint16_t I;
-	uint8_t sound, delayTimer;
+	uint8_t soundTimer, delayTimer;
 	uint16_t PC;
 	uint16_t stack[16];
 	uint16_t *stack_pointer;
@@ -260,8 +260,14 @@ void execute(chip8_t *chip8) {
 				case 0x07: // Fx07 (LD Vx, DT): Set Vx = delay timer value.
 					chip8->V[chip8->instruction.X] = chip8->delayTimer;
 					break;
+				//case 0x0A: // Fx0A (LD Vx, K): Wait for a key press and store the value of the key in Vx.
+
+				//	break;
 				case 0x15: // Fx15 (LD DT, Vx): Set delay timer = Vx.
 					chip8->delayTimer = chip8->V[chip8->instruction.X];
+					break;
+				case 0x18: // Set sound timer = Vx
+					chip8->soundTimer = chip8->V[chip8->instruction.X];
 					break;
 				case 0x1E: // Fx1E (ADD I, Vx): Set I = I + Vx
 					chip8->I += chip8->V[chip8->instruction.X];
@@ -418,7 +424,13 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		execute(&chip8);
+		for (int i = 0; i < 20; i++) {
+			execute(&chip8);
+		}
+
+		if (chip8.delayTimer > 0) {
+			chip8.delayTimer--;
+		}
 
 		if (draw) {
 			SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -436,7 +448,7 @@ int main(int argc, char **argv) {
 			SDL_RenderPresent(renderer);
 			draw = false;
 		}
-		SDL_Delay(1);
+		SDL_Delay(16);
 	}
 	
 	SDL_DestroyRenderer(renderer);
