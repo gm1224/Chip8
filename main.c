@@ -153,32 +153,40 @@ void execute(chip8_t *chip8) {
 					chip8->V[chip8->instruction.X] ^= chip8->V[chip8->instruction.Y];
 					break;
 				case 0x04: // 8xy4 (ADD Vx, Vy): Vx and Vy are added together and sets VF = 1 if the result is greater than 255 (8 bits).
-					chip8->V[chip8->instruction.X] += chip8->V[chip8->instruction.Y];
-					if (chip8->V[chip8->instruction.X] > 255) {
-						chip8->V[0xF] = 1;
-					}
-					else {
-						chip8->V[0xF] = 0;
-					}
+					{
+					uint16_t sum = chip8->V[chip8->instruction.X] + chip8->V[chip8->instruction.Y];
+					chip8->V[chip8->instruction.X] = (uint8_t)sum;
+					chip8->V[0xF] = (sum > 255) ? 1 : 0;
 					break;
-				case 0x05: // 8xy5 (SUB Vx, Vy): If Vx > Vy then VF = 1, then subtract Vy from Vx and store result in Vx.
-					if (chip8->V[chip8->instruction.X] > chip8->V[chip8->instruction.Y]) {
-						chip8->V[0xF] = 1;
 					}
-					else {
-						chip8->V[0xF] = 0;
-					}
-
-					chip8->V[chip8->instruction.X] -= chip8->V[chip8->instruction.Y];
+				case 0x05: // 8xy5 (SUB Vx, Vy): Subtract Vy from Vx and store result in Vx, then set VF = 1 if underflow happened.
+					{
+					uint8_t flag = (chip8->V[chip8->instruction.X] >= chip8->V[chip8->instruction.Y]);
+					chip8->V[chip8->instruction.X] -= chip8->V[chip8->instruction.Y]; 
+					chip8->V[0xF] = flag;
 					break;
+					}
 				case 0x06: // 8xy6 (SHR Vx {, Vy}): If least significant bit of Vx is 1, then VF = 1, also divide Vx by 2.
-					chip8->V[0xF] = chip8->V[chip8->instruction.X] & 0x01;
+					{
+					uint8_t bit = chip8->V[chip8->instruction.X] & 0x1;
 					chip8->V[chip8->instruction.X] >>= 1;
+					chip8->V[0xF] = bit;
 					break;
+					}
+				case 0x07: // 8xy7 (SUBN Vx, Vy): If Vy > Vx, VF = 1, then Vx is subtracted from Vy and the result is stored in Vx.
+					{
+					uint8_t flag = (chip8->V[chip8->instruction.Y] >= chip8->V[chip8->instruction.X]);
+					chip8->V[chip8->instruction.X] = chip8->V[chip8->instruction.Y] - chip8->V[chip8->instruction.X];
+					chip8->V[0xF] = flag;
+					break;
+					}
 				case 0x0E: // 8xyE (SHL Vx {, Vy}): If most significant bit of Vx is 1, then VF = 1, also multiply Vx by 2
-					chip8->V[0xF] = chip8->V[chip8->instruction.X] & 0x01;
+					{
+					uint8_t bit = (chip8->V[chip8->instruction.X] >> 7) & 0x1;
 					chip8->V[chip8->instruction.X] <<= 1;
+					chip8->V[0xF] = bit;
 					break;
+					}
 				default:
 					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
 					running = false;
@@ -428,7 +436,7 @@ int main(int argc, char **argv) {
 			SDL_RenderPresent(renderer);
 			draw = false;
 		}
-		SDL_Delay(3);
+		SDL_Delay(1);
 	}
 	
 	SDL_DestroyRenderer(renderer);
