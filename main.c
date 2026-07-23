@@ -259,9 +259,21 @@ void execute(chip8_t *chip8) {
 				case 0x07: // Fx07 (LD Vx, DT): Set Vx = delay timer value.
 					chip8->V[chip8->instruction.X] = chip8->delayTimer;
 					break;
-				//case 0x0A: // Fx0A (LD Vx, K): Wait for a key press and store the value of the key in Vx.
+				case 0x0A: // Fx0A (LD Vx, K): Wait for a key press and store the value of the key in Vx.
+					bool keyPressed = false;
 
-				//	break;
+					for (int i = 0; i < 16; i++) {
+						if (chip8->keypad[i]) {
+							chip8->V[chip8->instruction.X] = i;
+							keyPressed = true;
+						}
+					}
+
+					if (!keyPressed) {
+						chip8->PC -=2;
+					}
+
+					break;
 				case 0x15: // Fx15 (LD DT, Vx): Set delay timer = Vx.
 					chip8->delayTimer = chip8->V[chip8->instruction.X];
 					break;
@@ -270,6 +282,9 @@ void execute(chip8_t *chip8) {
 					break;
 				case 0x1E: // Fx1E (ADD I, Vx): Set I = I + Vx
 					chip8->I += chip8->V[chip8->instruction.X];
+					break;
+				case 0x29: // Fx29 (LD F, Vx): Set I = location of sprite for digit Vx.
+					chip8->I = 0x00 + ((chip8->V[chip8->instruction.X] & 0xF) * 5);
 					break;
 				case 0x33: // Fx33 (LD B, Vx): 
 					uint8_t value = chip8->V[chip8->instruction.X];
