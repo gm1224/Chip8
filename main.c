@@ -154,38 +154,38 @@ void execute(chip8_t *chip8) {
 					break;
 				case 0x04: // 8xy4 (ADD Vx, Vy): Vx and Vy are added together and sets VF = 1 if the result is greater than 255 (8 bits).
 					{
-					uint16_t sum = chip8->V[chip8->instruction.X] + chip8->V[chip8->instruction.Y];
-					chip8->V[chip8->instruction.X] = (uint8_t)sum;
-					chip8->V[0xF] = (sum > 255) ? 1 : 0;
-					break;
+						uint16_t sum = chip8->V[chip8->instruction.X] + chip8->V[chip8->instruction.Y];
+						chip8->V[chip8->instruction.X] = (uint8_t)sum;
+						chip8->V[0xF] = (sum > 255) ? 1 : 0;
+						break;
 					}
 				case 0x05: // 8xy5 (SUB Vx, Vy): Subtract Vy from Vx and store result in Vx, then set VF = 1 if underflow happened.
 					{
-					uint8_t flag = (chip8->V[chip8->instruction.X] >= chip8->V[chip8->instruction.Y]);
-					chip8->V[chip8->instruction.X] -= chip8->V[chip8->instruction.Y]; 
-					chip8->V[0xF] = flag;
-					break;
+						uint8_t flag = (chip8->V[chip8->instruction.X] >= chip8->V[chip8->instruction.Y]);
+						chip8->V[chip8->instruction.X] -= chip8->V[chip8->instruction.Y]; 
+						chip8->V[0xF] = flag;
+						break;
 					}
 				case 0x06: // 8xy6 (SHR Vx {, Vy}): If least significant bit of Vx is 1, then VF = 1, also divide Vx by 2.
 					{
-					uint8_t bit = chip8->V[chip8->instruction.X] & 0x1;
-					chip8->V[chip8->instruction.X] >>= 1;
-					chip8->V[0xF] = bit;
-					break;
+						uint8_t bit = chip8->V[chip8->instruction.X] & 0x1;
+						chip8->V[chip8->instruction.X] >>= 1;
+						chip8->V[0xF] = bit;
+						break;
 					}
 				case 0x07: // 8xy7 (SUBN Vx, Vy): If Vy > Vx, VF = 1, then Vx is subtracted from Vy and the result is stored in Vx.
 					{
-					uint8_t flag = (chip8->V[chip8->instruction.Y] >= chip8->V[chip8->instruction.X]);
-					chip8->V[chip8->instruction.X] = chip8->V[chip8->instruction.Y] - chip8->V[chip8->instruction.X];
-					chip8->V[0xF] = flag;
-					break;
+						uint8_t flag = (chip8->V[chip8->instruction.Y] >= chip8->V[chip8->instruction.X]);
+						chip8->V[chip8->instruction.X] = chip8->V[chip8->instruction.Y] - chip8->V[chip8->instruction.X];
+						chip8->V[0xF] = flag;
+						break;
 					}
 				case 0x0E: // 8xyE (SHL Vx {, Vy}): If most significant bit of Vx is 1, then VF = 1, also multiply Vx by 2
 					{
-					uint8_t bit = (chip8->V[chip8->instruction.X] >> 7) & 0x1;
-					chip8->V[chip8->instruction.X] <<= 1;
-					chip8->V[0xF] = bit;
-					break;
+						uint8_t bit = (chip8->V[chip8->instruction.X] >> 7) & 0x1;
+						chip8->V[chip8->instruction.X] <<= 1;
+						chip8->V[0xF] = bit;
+						break;
 					}
 				default:
 					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
@@ -235,7 +235,6 @@ void execute(chip8_t *chip8) {
 			}
 
 			draw = true;
-			
 			break;
 		case 0x0E:
 			switch (chip8->opcode & 0x00FF) {
@@ -281,19 +280,19 @@ void execute(chip8_t *chip8) {
 					break;
 				case 0x55: // Fx55 (LD [I], Vx): Store registers V0 through Vx in memory starting at location I.
 					{
-					uint8_t x = chip8->instruction.X;
-					for (uint8_t i = 0; i <= x; i++) {
-						chip8->memory[chip8->I + i] = chip8->V[i];
-					}
-					break;
+						uint8_t x = chip8->instruction.X;
+						for (uint8_t i = 0; i <= x; i++) {
+							chip8->memory[chip8->I + i] = chip8->V[i];
+						}
+						break;
 					}
 				case 0x65: // Fx65 (LD Vx, [I]): Read registers V0 through Vx from memory starting at location I.
 					{
-					uint8_t x = chip8->instruction.X;
-					for (uint8_t i = 0; i <= x; i++) {
-						chip8->V[i] = chip8->memory[chip8->I + i];
-					}
-					break;
+						uint8_t x = chip8->instruction.X;
+						for (uint8_t i = 0; i <= x; i++) {
+							chip8->V[i] = chip8->memory[chip8->I + i];
+						}
+						break;
 					}
 				default:
 					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
@@ -305,7 +304,77 @@ void execute(chip8_t *chip8) {
 			printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
 			running = false;
 			break;
-		break;
+	}
+}
+
+void getInputs(chip8_t *chip8) {
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		if (event.type == SDL_EVENT_QUIT) {
+			running = false;
+		}
+
+		if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
+			// Is key pressed or released?
+			bool pressed = (event.type == SDL_EVENT_KEY_DOWN);
+			switch (event.key.key) {
+				case SDLK_ESCAPE:
+					if (pressed) {
+						running = false;
+					}
+					break;
+				case SDLK_1:
+					chip8->keypad[0x1] = pressed;
+					break;
+				case SDLK_2:
+					chip8->keypad[0x2] = pressed;
+					break;
+				case SDLK_3:
+					chip8->keypad[0x3] = pressed;
+					break;
+				case SDLK_4:
+					chip8->keypad[0xC] = pressed;
+					break;
+				case SDLK_Q:
+					chip8->keypad[0x4] = pressed;
+					break;
+				case SDLK_W:
+					chip8->keypad[0x5] = pressed;
+					break;
+				case SDLK_E:
+					chip8->keypad[0x6] = pressed;
+					break;
+				case SDLK_R:
+					chip8->keypad[0xD] = pressed;
+					break;
+				case SDLK_A:
+					chip8->keypad[0x7] = pressed;
+					break;
+				case SDLK_S:
+					chip8->keypad[0x8] = pressed;
+					break;
+				case SDLK_D:
+					chip8->keypad[0x9] = pressed;
+					break;
+				case SDLK_F:
+					chip8->keypad[0xE] = pressed;
+					break;
+				case SDLK_Z:
+					chip8->keypad[0xA] = pressed;
+					break;
+				case SDLK_X:
+					chip8->keypad[0x0] = pressed;
+					break;
+				case SDLK_C:
+					chip8->keypad[0xB] = pressed;
+					break;
+				case SDLK_V:
+					chip8->keypad[0xF] = pressed;
+					break;
+				default:
+					break;
+			}
+		}
 	}
 }
 
@@ -355,81 +424,19 @@ int main(int argc, char **argv) {
 	}
 
 	while (running) {
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_EVENT_QUIT) {
-				running = false;
+		for (int i = 0; i < 15; i++) {
+			if (running) {
+				getInputs(&chip8);
+				execute(&chip8);
 			}
-
-			if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
-				// Is key pressed or released?
-				bool pressed = (event.type == SDL_EVENT_KEY_DOWN);
-				switch (event.key.key) {
-					case SDLK_ESCAPE:
-						if (pressed) {
-							running = false;
-						}
-						break;
-					case SDLK_1:
-						chip8.keypad[0x1] = pressed;
-						break;
-					case SDLK_2:
-						chip8.keypad[0x2] = pressed;
-						break;
-					case SDLK_3:
-						chip8.keypad[0x3] = pressed;
-						break;
-					case SDLK_4:
-						chip8.keypad[0xC] = pressed;
-						break;
-					case SDLK_Q:
-						chip8.keypad[0x4] = pressed;
-						break;
-					case SDLK_W:
-						chip8.keypad[0x5] = pressed;
-						break;
-					case SDLK_E:
-						chip8.keypad[0x6] = pressed;
-						break;
-					case SDLK_R:
-						chip8.keypad[0xD] = pressed;
-						break;
-					case SDLK_A:
-						chip8.keypad[0x7] = pressed;
-						break;
-					case SDLK_S:
-						chip8.keypad[0x8] = pressed;
-						break;
-					case SDLK_D:
-						chip8.keypad[0x9] = pressed;
-						break;
-					case SDLK_F:
-						chip8.keypad[0xE] = pressed;
-						break;
-					case SDLK_Z:
-						chip8.keypad[0xA] = pressed;
-						break;
-					case SDLK_X:
-						chip8.keypad[0x0] = pressed;
-						break;
-					case SDLK_C:
-						chip8.keypad[0xB] = pressed;
-						break;
-					case SDLK_V:
-						chip8.keypad[0xF] = pressed;
-						break;
-					default:
-						break;
-				}
-			}
-		}
-
-		for (int i = 0; i < 20; i++) {
-			execute(&chip8);
 		}
 
 		if (chip8.delayTimer > 0) {
 			chip8.delayTimer--;
+		}
+
+		if (chip8.soundTimer > 0) {
+			chip8.soundTimer--;
 		}
 
 		if (draw) {
@@ -448,9 +455,10 @@ int main(int argc, char **argv) {
 			SDL_RenderPresent(renderer);
 			draw = false;
 		}
+
 		SDL_Delay(16);
 	}
-	
+
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
