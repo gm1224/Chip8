@@ -100,8 +100,14 @@ void execute(chip8_t *chip8) {
 					memset(chip8->display, false, sizeof(chip8->display));
 					break;
 				case 0xEE: // 00EE (RET): Return from a subroutine.
-					chip8->stack_pointer--;
-					chip8->PC = *chip8->stack_pointer;
+					if (chip8->stack_pointer <= chip8->stack) {
+						printf("Stack underflow in 00EE (RET)");
+						running = false;
+					}
+					else {
+						chip8->stack_pointer--;
+						chip8->PC = *chip8->stack_pointer;
+					}
 					break;
 				default:
 					// Should only be 0nnn.
@@ -113,9 +119,15 @@ void execute(chip8_t *chip8) {
 			chip8->PC = (chip8->instruction.NNN);
 			break;
 		case 0x02: // 2nnn (CALL addr): Call subroutine at nnn.
-			*chip8->stack_pointer = chip8->PC;
-			chip8->stack_pointer++;
-			chip8->PC = (chip8->instruction.NNN);
+			if (chip8->stack_pointer >= chip8->stack + 16) {
+				printf("Stack overflow in 2nnn (CALL addr)");
+				running = false;
+			}
+			else {
+				*chip8->stack_pointer = chip8->PC;
+				chip8->stack_pointer++;
+				chip8->PC = (chip8->instruction.NNN);
+			}
 			break;
 		case 0x03: // 3xkk (SE Vx, byte): Skip next instruction if Vx = kk.
 			if (chip8->V[chip8->instruction.X] == chip8->instruction.KK) {
@@ -439,11 +451,9 @@ int main(int argc, char **argv) {
 	}
 
 	while (running) {
-		for (int i = 0; i < 15; i++) {
-			if (running) {
-				getInputs(&chip8);
-				execute(&chip8);
-			}
+		for (int i = 0; i < 15 && running; i++) {
+			getInputs(&chip8);
+			execute(&chip8);
 		}
 
 		if (chip8.delayTimer > 0) {
