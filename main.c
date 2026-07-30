@@ -79,6 +79,11 @@ bool chipInit(chip8_t *chip8, const char rom[]) {
 	return true;
 }
 
+void invalidInstr(chip8_t *chip8) {
+	printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
+	running = false;
+}
+
 void execute(chip8_t *chip8) {
 	// Get opcode and increment PC
 	chip8->opcode = (chip8->memory[chip8->PC] << 8) | chip8->memory[chip8->PC + 1];
@@ -90,14 +95,13 @@ void execute(chip8_t *chip8) {
 	chip8->instruction.Y = ((chip8->opcode >> 4) & 0x000F); // Y, upper 4 bits of low byte
 	chip8->instruction.KK = (chip8->opcode & 0x00FF);
 
-	printf("Executing 0x%04X\n", chip8->opcode);
-
 	// TODO: Stack over/underflow checks
 	switch ((chip8->opcode >> 12) & 0x0F) {
 		case 0x00:
 			switch (chip8->opcode & 0x00FF) { 
 				case 0xE0: // 00E0 (CLS): Clear the display.
 					memset(chip8->display, false, sizeof(chip8->display));
+					draw = true;
 					break;
 				case 0xEE: // 00EE (RET): Return from a subroutine.
 					if (chip8->stack_pointer <= chip8->stack) {
@@ -140,8 +144,13 @@ void execute(chip8_t *chip8) {
 			}
 			break;
 		case 0x05: // 5xy0 (SE Vx, Vy): Skip next instruction if Vx = Vy.
-			if (chip8->V[chip8->instruction.X] == chip8->V[chip8->instruction.Y]) {
-				chip8->PC += 2;
+			if (chip8->instruction.N == 0) {
+				if (chip8->V[chip8->instruction.X] == chip8->V[chip8->instruction.Y]) {
+					chip8->PC += 2;
+				}
+			}
+			else {
+				invalidInstr(chip8);
 			}
 			break;
 		case 0x06: // 6xkk (LD Vx, byte): Set Vx = kk.
@@ -200,14 +209,18 @@ void execute(chip8_t *chip8) {
 						break;
 					}
 				default:
-					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
-					running = false;
+					invalidInstr(chip8);
 					break;
 			}
 			break;
 		case 0x09: // 9xy0 (SNE Vx, Vy): Skip next instruction if Vx != Vy.
-			if (chip8->V[chip8->instruction.X] != chip8->V[chip8->instruction.Y]) {
-				chip8->PC += 2;
+			if (chip8->instruction.N == 0) {
+				if (chip8->V[chip8->instruction.X] != chip8->V[chip8->instruction.Y]) {
+					chip8->PC += 2;
+				}
+			}
+			else {
+				invalidInstr(chip8);
 			}
 			break;
 		case 0x0A: // Annn (LD I, addr): Set I = nnn.
@@ -220,7 +233,7 @@ void execute(chip8_t *chip8) {
 			chip8->V[chip8->instruction.X] = ((rand() % 256) & (chip8->instruction.KK));
 			break;
 		case 0x0D: // Dxyn (DRW Vx, Vy, niblle): Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-			// TODO: Just rewrite this
+			{
 			chip8->V[0xF] = 0; // Reset VF
 			uint8_t xCoord = chip8->V[chip8->instruction.X] % 64;
 			uint8_t yCoord = chip8->V[chip8->instruction.Y] % 32;
@@ -245,9 +258,9 @@ void execute(chip8_t *chip8) {
 					chip8->display[idx] ^= bit;
 				}
 			}
-
 			draw = true;
 			break;
+			}
 		case 0x0E:
 			switch (chip8->opcode & 0x00FF) {
 				case 0x9E: // 0xEx9E (SKP Vx): Skip next instruction if key with the value of Vx is pressed.
@@ -261,8 +274,7 @@ void execute(chip8_t *chip8) {
 					}
 					break;
 				default:
-					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
-					running = false;
+					invalidInstr(chip8);
 					break;
 			}
 			break;
@@ -272,6 +284,7 @@ void execute(chip8_t *chip8) {
 					chip8->V[chip8->instruction.X] = chip8->delayTimer;
 					break;
 				case 0x0A: // Fx0A (LD Vx, K): Wait for a key press and store the value of the key in Vx.
+					{
 					bool keyPressed = false;
 
 					for (int i = 0; i < 16; i++) {
@@ -284,8 +297,8 @@ void execute(chip8_t *chip8) {
 					if (!keyPressed) {
 						chip8->PC -=2;
 					}
-
 					break;
+					}
 				case 0x15: // Fx15 (LD DT, Vx): Set delay timer = Vx.
 					chip8->delayTimer = chip8->V[chip8->instruction.X];
 					break;
@@ -299,12 +312,14 @@ void execute(chip8_t *chip8) {
 					chip8->I = 0x00 + ((chip8->V[chip8->instruction.X] & 0xF) * 5);
 					break;
 				case 0x33: // Fx33 (LD B, Vx): 
+					{
 					uint8_t value = chip8->V[chip8->instruction.X];
 
 					chip8->memory[chip8->I] = value / 100;
 					chip8->memory[chip8->I + 1] = (value / 10) % 10;
 					chip8->memory[chip8->I + 2] = value % 10;
 					break;
+					}
 				case 0x55: // Fx55 (LD [I], Vx): Store registers V0 through Vx in memory starting at location I.
 					{
 						uint8_t x = chip8->instruction.X;
@@ -322,14 +337,12 @@ void execute(chip8_t *chip8) {
 						break;
 					}
 				default:
-					printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
-					running = false;
+					invalidInstr(chip8);
 					break;
 			}
 			break;
 		default:
-			printf("Invalid Instruction: 0x%04X\n", chip8->opcode);
-			running = false;
+			invalidInstr(chip8);
 			break;
 	}
 }
