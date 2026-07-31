@@ -61,13 +61,19 @@ bool chipInit(chip8_t *chip8, const char rom[]) {
 	// Load ROM
 	FILE *file = fopen(rom, "rb");
 	if (!file) {
+		printf("ROM could not be loaded.\n");
 		return false;
 	}
 
 	// Get size
 	fseek(file, 0, SEEK_END);
-	long size = ftell(file);
+	uint16_t size = ftell(file);
 	rewind(file);
+
+	if (size > (4096 - 0x200)) {
+		printf("ROM size is too big.\n");
+		return false;
+	}
 
 	fread(&chip8->memory[0x200], 1, size, file);
 
@@ -95,7 +101,6 @@ void execute(chip8_t *chip8) {
 	chip8->instruction.Y = ((chip8->opcode >> 4) & 0x000F); // Y, upper 4 bits of low byte
 	chip8->instruction.KK = (chip8->opcode & 0x00FF);
 
-	// TODO: Stack over/underflow checks
 	switch ((chip8->opcode >> 12) & 0x0F) {
 		case 0x00:
 			switch (chip8->opcode & 0x00FF) { 
@@ -429,7 +434,6 @@ int main(int argc, char **argv) {
 
 	// Initialize chip
 	if (!chipInit(&chip8, argv[1])) {
-		printf("Error\n");
 		exit(EXIT_FAILURE);
 	}
 
