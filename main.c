@@ -121,7 +121,7 @@ void execute(chip8_t *chip8) {
 					break;
 				default:
 					// Should only be 0nnn.
-					printf("Instruction 0x%04X ignored.\n", chip8->opcode);
+					invalidInstr(chip8);
 					break;
 			}
 			break;
@@ -241,29 +241,29 @@ void execute(chip8_t *chip8) {
 		case 0x0D: // Dxyn (DRW Vx, Vy, niblle): Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
 			{
 			chip8->V[0xF] = 0; // Reset VF
-			uint8_t xCoord = chip8->V[chip8->instruction.X] % 64;
-			uint8_t yCoord = chip8->V[chip8->instruction.Y] % 32;
+			uint8_t xCoord = chip8->V[chip8->instruction.X];
+			uint8_t yCoord = chip8->V[chip8->instruction.Y];
 
-			for (uint8_t i = 0; i < (chip8->opcode & 0x0F); i++) {
-				uint8_t byte = chip8->memory[chip8->I + i];
+			for (uint8_t row = 0; row < (chip8->instruction.N); row++) {
+				uint8_t byte = chip8->memory[chip8->I + row];
 
-				for (uint8_t j = 0; j < 8; j++) {
-					uint8_t bit = ((byte >> (7 - j)) & 0x01);
-					uint8_t x = (xCoord + j) % 64;
-					uint8_t y = (yCoord + i) % 32;
-					uint16_t idx = x + y * 64;
-
-					if (!bit) {
+				for (uint8_t col = 0; col < 8; col++) {
+					if (!(byte & (0x80 >> col))) {
 						continue;
 					}
+
+					uint8_t x = (xCoord + col) % 64;
+					uint8_t y = (yCoord + row) % 32;
+					uint16_t idx = x + y * 64;
 
 					if (chip8->display[idx]) {
 						chip8->V[0xF] = 1;
 					}
 
-					chip8->display[idx] ^= bit;
+					chip8->display[idx] ^= 1;
 				}
 			}
+
 			draw = true;
 			break;
 			}
