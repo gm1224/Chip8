@@ -67,11 +67,12 @@ bool chipInit(chip8_t *chip8, const char rom[]) {
 
 	// Get size
 	fseek(file, 0, SEEK_END);
-	uint16_t size = ftell(file);
+	long size = ftell(file);
 	rewind(file);
 
 	if (size > (4096 - 0x200)) {
 		printf("ROM size is too big.\n");
+		fclose(file);
 		return false;
 	}
 
