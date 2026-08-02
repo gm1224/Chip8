@@ -17,6 +17,15 @@ typedef struct {
 } instruction_t;
 
 typedef struct {
+	bool vfReset;
+	bool memory;
+	bool displayWait;
+	bool clipping;
+	bool shifting;
+	bool jumping;
+} quirks_t;
+
+typedef struct {
 	uint8_t memory[4096];
 	uint8_t V[16];
 	uint16_t I;
@@ -28,6 +37,7 @@ typedef struct {
 	uint16_t opcode;
 	bool keypad[16];
 	instruction_t instruction;
+	quirks_t quirks;
 } chip8_t;
 
 bool running = true;
@@ -172,12 +182,27 @@ void execute(chip8_t *chip8) {
 					break;
 				case 0x01: // 8xy1 (OR Vx, Vy): Perform bitwise OR on Vx and Vy and store result in Vx.
 					chip8->V[chip8->instruction.X] |= chip8->V[chip8->instruction.Y]; 
+
+					// Quirk: VF is reset
+					if (chip8->quirks.vfReset) {
+						chip8->V[0xF] = 0;
+					}
 					break;
 				case 0x02: // 8xy2 (AND Vx, Vy): Perform bitwise AND on Vx and Vy and store result in Vx.
 					chip8->V[chip8->instruction.X] &= chip8->V[chip8->instruction.Y];
+
+					// Quirk: VF is reset
+					if (chip8->quirks.vfReset) {
+						chip8->V[0xF] = 0;
+					}
 					break;
 				case 0x03: // 8xy3 (XOR Vx, Vy): Perform bitwise XOR on Vx and Vy and store the result in Vx.
 					chip8->V[chip8->instruction.X] ^= chip8->V[chip8->instruction.Y];
+
+					// Quirk: VF is reset
+					if (chip8->quirks.vfReset) {
+					chip8->V[0xF] = 0;
+					}
 					break;
 				case 0x04: // 8xy4 (ADD Vx, Vy): Vx and Vy are added together and sets VF = 1 if the result is greater than 255 (8 bits).
 					{
@@ -195,6 +220,10 @@ void execute(chip8_t *chip8) {
 					}
 				case 0x06: // 8xy6 (SHR Vx {, Vy}): If least significant bit of Vx is 1, then VF = 1, also divide Vx by 2.
 					{
+						// Quirk: Shifted Vy is stored in Vx
+						if (!chip8->quirks.shifting) {
+							chip8->V[chip8->instruction.X] = chip8->V[chip8->instruction.Y];
+						}
 						uint8_t bit = chip8->V[chip8->instruction.X] & 0x1;
 						chip8->V[chip8->instruction.X] >>= 1;
 						chip8->V[0xF] = bit;
@@ -209,6 +238,10 @@ void execute(chip8_t *chip8) {
 					}
 				case 0x0E: // 8xyE (SHL Vx {, Vy}): If most significant bit of Vx is 1, then VF = 1, also multiply Vx by 2
 					{
+						// Quirk: Shifted Vy is stored in Vx
+						if (!chip8->quirks.shifting) {
+							chip8->V[chip8->instruction.X] = chip8->V[chip8->instruction.Y];
+						}
 						uint8_t bit = (chip8->V[chip8->instruction.X] >> 7) & 0x1;
 						chip8->V[chip8->instruction.X] <<= 1;
 						chip8->V[0xF] = bit;
@@ -233,7 +266,13 @@ void execute(chip8_t *chip8) {
 			chip8->I = chip8->instruction.NNN;
 			break;
 		case 0x0B: // Bnnn (JP V0, addr): Jump to location nnn + V0.
-			chip8->PC = chip8->instruction.NNN + chip8->V[0];
+			//Quirk: Vx is used instead of V0 where x = the highest nibble of nnn
+			if (chip8->quirks.jumping) {
+				chip8->PC = chip8->instruction.NNN + chip8->V[(chip8->instruction.NNN & 0xF00) >> 8];
+			}
+			else {
+				chip8->PC = chip8->instruction.NNN + chip8->V[0];
+			}
 			break;
 		case 0x0C: // Cxkk (RND Vx, byte): Set Vx = random byte AND kk.
 			chip8->V[chip8->instruction.X] = ((rand() % 256) & (chip8->instruction.KK));
@@ -332,6 +371,12 @@ void execute(chip8_t *chip8) {
 						for (uint8_t i = 0; i <= x; i++) {
 							chip8->memory[chip8->I + i] = chip8->V[i];
 						}
+
+						// Quirk: I += x + 1 after finishing
+						if (chip8->quirks.memory) {
+							chip8->I += x + 1;
+						}
+
 						break;
 					}
 				case 0x65: // Fx65 (LD Vx, [I]): Read registers V0 through Vx from memory starting at location I.
@@ -340,6 +385,12 @@ void execute(chip8_t *chip8) {
 						for (uint8_t i = 0; i <= x; i++) {
 							chip8->V[i] = chip8->memory[chip8->I + i];
 						}
+
+						// Quirk: I += x + 1 after finishing
+						if (chip8->quirks.memory) {
+							chip8->I += x + 1;
+						}
+
 						break;
 					}
 				default:
@@ -432,6 +483,15 @@ int main(int argc, char **argv) {
 	}
 
 	chip8_t chip8 = { 0 };
+
+	chip8.quirks = (quirks_t) {
+		.vfReset = true,
+		.memory = true,
+		.displayWait = true, //
+		.clipping = true, //
+		.shifting = false,
+		.jumping = false
+	};
 
 	// Initialize chip
 	if (!chipInit(&chip8, argv[1])) {
